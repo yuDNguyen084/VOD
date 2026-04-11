@@ -1,0 +1,65 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  CREATOR
+  ADMIN
+}
+
+enum VideoStatus {
+  PENDING
+  UPLOADED
+  PROCESSING
+  READY
+  FAILED
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(USER)
+  refreshToken String?
+  createdAt    DateTime @default(now())
+  videos       Video[]
+}
+
+model Video {
+  id         String      @id @default(uuid())
+  creatorId  String
+  title      String?
+  rawKey     String?
+  hlsUrl     String?
+  status     VideoStatus @default(PENDING)
+  createdAt  DateTime    @default(now())
+  deletedAt  DateTime?   // Phục vụ Soft Delete
+  creator    User        @relation(fields: [creatorId], references: [id])
+  job        MediaJob?
+  
+  @@index([createdAt])
+  @@index([title])
+}
+
+model MediaJob {
+  id         String    @id @default(uuid())
+  videoId    String    @unique
+  workerId   String?
+  progress   Int       @default(0)
+  status     JobStatus @default(PENDING)
+  errorLog   String?
+  video      Video     @relation(fields: [videoId], references: [id])
+}

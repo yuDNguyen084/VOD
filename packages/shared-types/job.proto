@@ -1,0 +1,7 @@
+syntax = "proto3";
+package job;
+message MediaJobData {
+  string jobId = 1;
+  string videoId = 2;
+  string rawKey = 3;
+}

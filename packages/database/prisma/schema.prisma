@@ -46,7 +46,7 @@ model Video {
   hlsUrl     String?
   status     VideoStatus @default(PENDING)
   createdAt  DateTime    @default(now())
-  deletedAt  DateTime?   // Phục vụ Soft Delete
+  deletedAt  DateTime?  
   creator    User        @relation(fields: [creatorId], references: [id])
   job        MediaJob?
   

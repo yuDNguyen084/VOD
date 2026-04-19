@@ -23,4 +23,6 @@ COPY --from=base /app/apps/web-client/.next/static ./apps/web-client/.next/stati
 COPY --from=base /app/apps/web-client/public ./apps/web-client/public
 
 EXPOSE 3000
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
 CMD ["node", "apps/web-client/server.js"]

@@ -4,7 +4,7 @@ import { authorize } from '../../common/middlewares/auth.middleware';
 import { cache } from '../../common/middlewares/cache.middleware';
 import { validate } from '../../common/middlewares/validate.middleware';
 import { videoSchemas } from '../../common/validations/video.schema';
-import { Role } from '../../common/constants/roles';
+import { Role } from '../../common/constants/role';
 
 const router = Router();
 router.get('/', authorize(), cache(60), VideoController.getVideos);

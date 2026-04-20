@@ -5,13 +5,10 @@ import { AppError } from '../../common/utils/AppError';
 
 export class AuthService {
   
-  // Hàm nội bộ để tạo 1 cặp Token
   private static generateTokens(user: any) {
     const payload = { sub: user.id, role: user.role, email: user.email };
     
-    // Access Token sống 15 phút
     const accessToken = jwt.sign(payload, process.env.JWT_SECRET!, { expiresIn: '15m' });
-    // Refresh Token sống 7 ngày (Dùng 1 secret key khác cho bảo mật)
     const refreshToken = jwt.sign(payload, process.env.JWT_REFRESH_SECRET!, { expiresIn: '7d' });
     
     return { accessToken, refreshToken };

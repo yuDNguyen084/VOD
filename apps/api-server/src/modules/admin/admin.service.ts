@@ -3,7 +3,7 @@ import { redis } from '../../redis';
 
 export class AdminService {
   static async getPipelineStatus() {
-    const queueLength = await redis.llen('video_tasks');
+    const queueLength = await redis.llen('vod_transcoding_queue');
     const activeJobs = await AdminRepository.getActiveJobs();
     return { queueLength, activeJobs };
   }

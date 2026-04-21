@@ -1,7 +1,11 @@
 syntax = "proto3";
-package job;
-message MediaJobData {
+package pb;
+
+option go_package = ".;pb";
+
+message VideoJob {
   string jobId = 1;
   string videoId = 2;
-  string rawKey = 3;
+  string rawS3Key = 3;
+  string hlsS3Key = 4;
 }

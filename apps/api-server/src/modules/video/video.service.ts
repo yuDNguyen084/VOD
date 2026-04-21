@@ -25,7 +25,15 @@ export class VideoService {
       prisma.video.update({ where: { id: videoId }, data: { status: VideoStatus.UPLOADED } }),
       prisma.mediaJob.create({ data: { videoId } })
     ]);
-    await QueueService.pushJob({ jobId: job.id, videoId: video.id, rawKey: video.rawKey });
+    
+    if (!video.rawKey) throw new AppError(400, 'Video rawKey missing');
+
+    await QueueService.pushJob({ 
+      jobId: job.id, 
+      videoId: video.id, 
+      rawS3Key: video.rawKey,
+      hlsS3Key: `hls/${video.id}`
+    });
     return job;
   }
 

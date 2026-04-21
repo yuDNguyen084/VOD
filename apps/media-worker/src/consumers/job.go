@@ -2,7 +2,6 @@ package consumers
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -11,23 +10,17 @@ import (
 	"sync"
 	"time"
 
+	"media-worker/src/pb"
 	"media-worker/src/processors"
 	s3service "media-worker/src/s3-service"
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/redis/go-redis/v9"
+	"google.golang.org/protobuf/proto"
 )
 
 // BƯỚC 1: ĐỊNH NGHĨA CẤU TRÚC DỮ LIỆU VÀ CẤU HÌNH
 // ---------------------------------------------------------
-
-// Job payload mô phỏng cấu trúc JSON (hoặc Protobuf) lưu trong Redis
-type VideoJob struct {
-	JobID    string `json:"job_id"`
-	VideoID  string `json:"video_id"`
-	RawS3Key string `json:"raw_s3_key"`
-	HlsS3Key string `json:"hls_s3_key"`
-}
 
 const (
 	MaxConcurrentJobs = 2 // Chỉ cho phép nén tối đa 2 video cùng lúc để tránh sập CPU server
@@ -72,38 +65,38 @@ func (w *MediaWorker) trackJobTelemetry(ctx context.Context, jobID string) {
 // BƯỚC 4: HÀM ĐIỀU PHỐI (ORCHESTRATOR) CHO 1 JOB
 // ---------------------------------------------------------
 
-func (w *MediaWorker) processSingleJob(globalCtx context.Context, job *VideoJob) {
+func (w *MediaWorker) processSingleJob(globalCtx context.Context, job *pb.VideoJob) {
 	defer w.wg.Done()
 	// 4.1: Chiếm 1 slot trong Worker Pool để chạy. Nếu Pool đầy (đã có 2 jobs chạy), nó sẽ đợi ở đây.
 	select {
 	case w.semaphore <- struct{}{}:
 		defer func() { <-w.semaphore }() // Xong việc thì nhả slot ra
 	case <-globalCtx.Done():
-		log.Printf("Worker context cancelled, skipping job %s", job.JobID)
+		log.Printf("Worker context cancelled, skipping job %s", job.JobId)
 		return
 	}
 
-	log.Printf("\n>>> STARTING JOB: %s <<<", job.JobID)
+	log.Printf("\n>>> STARTING JOB: %s <<<", job.JobId)
 
 	// Set timeout 1 tiếng cho an toàn (Tránh Worker bị treo vĩnh viễn)
 	ctx, cancel := context.WithTimeout(globalCtx, 1*time.Hour)
 	defer cancel()
 
 	// Track Resource Consumption for this JOB
-	go w.trackJobTelemetry(ctx, job.JobID)
+	go w.trackJobTelemetry(ctx, job.JobId)
 
 	// Tạo đường dẫn file tạm
-	localInput := filepath.Join(TempDir, job.VideoID+".mp4")
-	localOutputDir := filepath.Join(TempDir, job.VideoID+"_hls")
+	localInput := filepath.Join(TempDir, job.VideoId+".mp4")
+	localOutputDir := filepath.Join(TempDir, job.VideoId+"_hls")
 	os.MkdirAll(localOutputDir, 0755) // Tạo folder output
 
-	logChan := fmt.Sprintf("admin:logs:job:%s", job.JobID)
+	logChan := fmt.Sprintf("admin:logs:job:%s", job.JobId)
 
 	// LUỒNG CHÍNH CỦA WORKER
 	// 1. Tải file từ S3
 	w.redis.Publish(ctx, logChan, "Downloading file from S3...")
 	if err := s3service.DownloadRawVideo(ctx, w.s3Client, job.RawS3Key, localInput); err != nil {
-		errMsg := fmt.Sprintf("[JOB ERROR %s] Failed to download file: %v", job.JobID, err)
+		errMsg := fmt.Sprintf("[JOB ERROR %s] Failed to download file: %v", job.JobId, err)
 		log.Println(errMsg)
 		w.redis.Publish(ctx, logChan, errMsg)
 		return
@@ -117,7 +110,7 @@ func (w *MediaWorker) processSingleJob(globalCtx context.Context, job *VideoJob)
 	})
 
 	if err != nil {
-		errMsg := fmt.Sprintf("[JOB ERROR %s] Transcode failed: %v", job.JobID, err)
+		errMsg := fmt.Sprintf("[JOB ERROR %s] Transcode failed: %v", job.JobId, err)
 		log.Println(errMsg)
 		w.redis.Publish(ctx, logChan, errMsg)
 		// Thực tế: Trong dự án sẽ gọi Node.js API hoặc update Redis để báo lỗi (Trạng thái: FAILED)
@@ -125,17 +118,17 @@ func (w *MediaWorker) processSingleJob(globalCtx context.Context, job *VideoJob)
 		// 3. Nếu thành công, tải toàn bộ kết quả (.m3u8, .ts) lên lại S3
 		w.redis.Publish(ctx, logChan, "Uploading HLS Segments to S3...")
 		if uploadErr := s3service.UploadHLSFiles(ctx, w.s3Client, localOutputDir, job.HlsS3Key); uploadErr != nil {
-			log.Printf("[JOB ERROR %s] Failed to upload to S3: %v", job.JobID, uploadErr)
+			log.Printf("[JOB ERROR %s] Failed to upload to S3: %v", job.JobId, uploadErr)
 			return
 		}
 		// Thực tế: Cập nhật Redis/Database báo thành công (Trạng thái: SUCCESS)
-		successMsg := fmt.Sprintf("[COMPLETED] Job %s has successfully completed the entire flow!", job.JobID)
+		successMsg := fmt.Sprintf("[COMPLETED] Job %s has successfully completed the entire flow!", job.JobId)
 		log.Println(successMsg)
 		w.redis.Publish(ctx, logChan, successMsg)
 	}
 
 	// 4. DỌN DẸP RÁC (RẤT QUAN TRỌNG ĐỂ KHÔNG ĐẦY Ổ CỨNG EC2)
-	log.Printf("[CLEANUP] Deleting temporary files for Job %s...", job.JobID)
+	log.Printf("[CLEANUP] Deleting temporary files for Job %s...", job.JobId)
 	os.Remove(localInput)
 	os.RemoveAll(localOutputDir)
 }
@@ -166,12 +159,12 @@ func (w *MediaWorker) StartListening(ctx context.Context) {
 				continue
 			}
 
-			// res[0] là tên Queue, res[1] là dữ liệu thực sự (chuỗi JSON)
+			// res[0] là tên Queue, res[1] là dữ liệu thực sự (chuỗi Protobuf)
 			payload := res[1]
 
-			var job VideoJob
-			if err := json.Unmarshal([]byte(payload), &job); err != nil {
-				log.Printf("[DATA ERROR] Failed to parse JSON from Redis: %v", err)
+			var job pb.VideoJob
+			if err := proto.Unmarshal([]byte(payload), &job); err != nil {
+				log.Printf("[DATA ERROR] Failed to parse Protobuf from Redis: %v", err)
 				continue
 			}
 

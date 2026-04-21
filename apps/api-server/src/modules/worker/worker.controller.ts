@@ -4,9 +4,9 @@ import { catchAsync } from '../../common/utils/catchAsync';
 
 export class WorkerController {
   static updateProgress = catchAsync(async (req: Request, res: Response) => {
-    const jobId = req.params.id as string; 
+
+    await WorkerRepository.updateProgress(req.params.id as string, req.body);
+    res.json({ success: true });
     
-    const result = await WorkerService.handleProgressUpdate(jobId, req.body);
-    res.json({ success: true, data: result });
   });
 }

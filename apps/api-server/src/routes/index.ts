@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
+
 import authRoutes from '../modules/auth/auth.routes';
 import videoRoutes from '../modules/video/video.routes';
 import internalRoutes from '../modules/worker/worker.routes';
@@ -9,7 +11,9 @@ import creatorRoutes from '../modules/creator/creator.routes';
 
 const router = Router();
 
-router.use('/auth', authRoutes);
+const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20 });
+
+router.use('/auth', authLimiter, authRoutes);
 router.use('/videos', videoRoutes);
 router.use('/internal', internalRoutes);
 router.use('/users', userRoutes);

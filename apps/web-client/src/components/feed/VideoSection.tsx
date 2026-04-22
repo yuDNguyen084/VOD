@@ -1,34 +1,24 @@
 "use client";
 
 import { useRef, useEffect, useState } from "react";
-
-const videos = [
-  {
-    src: "https://videos.pexels.com/video-files/36577961/15508693_3840_2160_30fps.mp4",
-    user: "kaito",
-    caption: "cinematic vibes 🌙",
-  },
-  {
-    src: "https://videos.pexels.com/video-files/36934434/15647216_3840_2160_30fps.mp4",
-    user: "duy",
-    caption: "night drive",
-  },
-  {
-    src: "https://videos.pexels.com/video-files/30719015/13142215_1080_1920_60fps.mp4",
-    user: "nghia",
-    caption: "energy 🔥",
-  },
-];
+import { useFeedStore } from "@/store/useFeedStore";
 
 export default function VideoSection({
   onSelectVideo,
 }: {
   onSelectVideo?: (src: string) => void;
 }) {
+  const { videos, isLoading, fetchVideos } = useFeedStore();
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
+    fetchVideos();
+  }, [fetchVideos]);
+
+  useEffect(() => {
+    if (videos.length === 0) return;
+
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -52,13 +42,21 @@ export default function VideoSection({
     });
 
     return () => observer.disconnect();
-  }, []);
+  }, [videos]);
+
+  if (isLoading) {
+    return <div className="h-screen w-full flex items-center justify-center text-white">Loading videos...</div>;
+  }
+
+  if (videos.length === 0) {
+    return <div className="h-screen w-full flex items-center justify-center text-white">No videos found.</div>;
+  }
 
   return (
     <div className="relative z-0 h-screen overflow-y-scroll snap-y snap-mandatory scrollbar-hide">
       {videos.map((video, i) => (
         <div
-          key={i}
+          key={video.id}
           className="h-screen snap-start relative flex items-center justify-center z-0"
         >
           <video
@@ -73,12 +71,11 @@ export default function VideoSection({
           />
 
           {/* overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10 pointer-events-none" />
 
           {/* user info */}
-          <div className="absolute bottom-10 left-6 z-20 max-w-[80%]">
-            <p className="font-bold text-lg">@{video.user}</p>
-            <p className="text-sm opacity-80">{video.caption}</p>
+          <div className="absolute bottom-10 left-6 z-20 max-w-[80%] pointer-events-none">
+            <p className="font-bold text-lg text-white drop-shadow-md">{video.title}</p>
           </div>
 
           {/* right actions */}

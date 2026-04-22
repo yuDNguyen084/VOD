@@ -3,11 +3,28 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuthStore } from "@/store/useAuthStore";
 
 export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
+  const [error, setError] = useState("");
+
+  const { register, isLoading } = useAuthStore();
+  const router = useRouter();
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setError("");
+      await register(email, password);
+      router.push("/login");
+    } catch (err: any) {
+      setError(err.response?.data?.message || err.message || "Registration failed");
+    }
+  };
 
   return (
     <div className="relative w-full h-screen flex items-center justify-center bg-black overflow-hidden">
@@ -28,7 +45,8 @@ export default function RegisterPage() {
           Sign Up
         </h2>
 
-        <form className="flex flex-col gap-4">
+        <form onSubmit={handleRegister} className="flex flex-col gap-4">
+          {error && <p className="text-red-500 text-sm mb-2 text-center">{error}</p>}
           <input
             type="text"
             placeholder="Username"
@@ -55,9 +73,10 @@ export default function RegisterPage() {
 
           <button
             type="submit"
-            className="mt-4 py-3 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold transition"
+            disabled={isLoading}
+            className="mt-4 py-3 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold transition disabled:opacity-50"
           >
-            Create Account
+            {isLoading ? "Creating..." : "Create Account"}
           </button>
         </form>
 

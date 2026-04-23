@@ -11,6 +11,10 @@ RUN npm install --workspace=apps/web-client --workspace=packages/shared-types
 # Build
 COPY packages/shared-types ./packages/shared-types
 COPY apps/web-client ./apps/web-client
+
+# First build the shared types so the dist files are available
+RUN npm run build --workspace=packages/shared-types
+
 RUN npm run build --workspace=apps/web-client
 
 # Production

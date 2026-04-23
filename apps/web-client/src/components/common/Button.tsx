@@ -9,6 +9,7 @@ type Props = {
   variant?: "primary" | "secondary" | "ghost";
   size?: "sm" | "md" | "lg";
   loading?: boolean;
+  disabled?: boolean;
   className?: string;
 };
 
@@ -18,13 +19,14 @@ export default function Button({
   variant = "primary",
   size = "md",
   loading = false,
+  disabled = false,
   className,
 }: Props) {
   return (
     <motion.button
       whileTap={{ scale: 0.95 }}
       onClick={onClick}
-      disabled={loading}
+      disabled={loading || disabled}
       className={clsx(
         "rounded-lg font-semibold transition flex items-center justify-center",
 

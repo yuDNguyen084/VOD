@@ -114,17 +114,24 @@ func (w *MediaWorker) processSingleJob(globalCtx context.Context, job *pb.VideoJ
 		log.Println(errMsg)
 		w.redis.Publish(ctx, logChan, errMsg)
 		// Thực tế: Trong dự án sẽ gọi Node.js API hoặc update Redis để báo lỗi (Trạng thái: FAILED)
+		statusMsg := fmt.Sprintf(`{"jobId":"%s","status":"FAILED","videoId":"%s"}`, job.JobId, job.VideoId)
+		w.redis.Publish(ctx, "worker:job:status", statusMsg)
 	} else {
 		// 3. Nếu thành công, tải toàn bộ kết quả (.m3u8, .ts) lên lại S3
 		w.redis.Publish(ctx, logChan, "Uploading HLS Segments to S3...")
 		if uploadErr := s3service.UploadHLSFiles(ctx, w.s3Client, localOutputDir, job.HlsS3Key); uploadErr != nil {
 			log.Printf("[JOB ERROR %s] Failed to upload to S3: %v", job.JobId, uploadErr)
+			statusMsg := fmt.Sprintf(`{"jobId":"%s","status":"FAILED","videoId":"%s"}`, job.JobId, job.VideoId)
+			w.redis.Publish(ctx, "worker:job:status", statusMsg)
 			return
 		}
 		// Thực tế: Cập nhật Redis/Database báo thành công (Trạng thái: SUCCESS)
 		successMsg := fmt.Sprintf("[COMPLETED] Job %s has successfully completed the entire flow!", job.JobId)
 		log.Println(successMsg)
 		w.redis.Publish(ctx, logChan, successMsg)
+
+		statusMsg := fmt.Sprintf(`{"jobId":"%s","status":"COMPLETED","videoId":"%s"}`, job.JobId, job.VideoId)
+		w.redis.Publish(ctx, "worker:job:status", statusMsg)
 	}
 
 	// 4. DỌN DẸP RÁC (RẤT QUAN TRỌNG ĐỂ KHÔNG ĐẦY Ổ CỨNG EC2)

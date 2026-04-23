@@ -61,7 +61,7 @@ export default function VideoSection({
         >
           <video
             data-index={i}
-            ref={(el) => (videoRefs.current[i] = el)}
+            ref={(el) => { videoRefs.current[i] = el; }}
             src={video.src}
             className="w-full h-full object-cover"
             muted

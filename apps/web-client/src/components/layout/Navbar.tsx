@@ -4,6 +4,7 @@ import { useAuthStore } from "@/store/useAuthStore";
 import { useRouter } from "next/navigation";
 import { User } from "lucide-react";
 import { useState } from "react";
+import { useSocket } from "@/hooks/useSocket";
 
 const menus = ["Home", "Categories", "Latest"];
 
@@ -12,6 +13,8 @@ export default function Navbar() {
   const logout = useAuthStore((s) => s.logout);
   const router = useRouter();
   const [open, setOpen] = useState(false);
+
+  useSocket(); // Initialize socket connection
 
   return (
     <header className="fixed top-0 left-0 w-full z-[9999]">

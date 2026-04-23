@@ -5,9 +5,28 @@ import UploadBox from "@/components/upload/UploadBox";
 import ProgressBar from "@/components/upload/ProgressBar";
 import Button from "@/components/common/Button";
 import { useUploadStore } from "@/store/useUploadStore";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export default function UploadPage() {
   const { file, title, setTitle, progress, isUploading, error, videoId, upload, reset } = useUploadStore();
+  const router = useRouter();
+
+  // Reset state on mount to prevent auto-redirect from previous sessions
+  useEffect(() => {
+    reset();
+  }, [reset]);
+
+  useEffect(() => {
+    if (videoId && !isUploading && !error) {
+      // Auto navigate to home after 1.5 seconds
+      const timeout = setTimeout(() => {
+        router.push("/");
+        reset();
+      }, 1500);
+      return () => clearTimeout(timeout);
+    }
+  }, [videoId, isUploading, error, router, reset]);
 
   return (
     <ProtectedRoute requiredRole="creator">
@@ -31,7 +50,7 @@ export default function UploadPage() {
               
               <input
                 type="text"
-                placeholder="Video Title (Optional)"
+                placeholder="Video Title (Required)"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 disabled={isUploading}
@@ -41,13 +60,13 @@ export default function UploadPage() {
               <ProgressBar progress={progress} />
 
               {error && <p className="text-red-500 text-sm">{error}</p>}
-              {videoId && !isUploading && !error && <p className="text-green-500 text-sm">Upload complete!</p>}
+              {videoId && !isUploading && !error && <p className="text-green-500 text-sm">Upload complete! Redirecting...</p>}
 
               <div className="flex gap-3">
                 <Button
                   onClick={upload}
                   loading={isUploading}
-                  disabled={isUploading || !!videoId}
+                  disabled={isUploading || !!videoId || !title.trim()}
                   className="w-full"
                 >
                   {isUploading ? "Uploading..." : "Upload"}

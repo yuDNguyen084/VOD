@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import Navbar from "@/components/layout/Navbar";
+import { useState, useEffect, Suspense } from "react";
 import VideoSection from "@/components/feed/VideoSection";
 import { colors } from "@/constants/theme";
 
@@ -40,15 +39,15 @@ export default function Home() {
         />
       </div>
 
-      <Navbar />
-
       <div className="relative z-0">
-        <VideoSection
-          onSelectVideo={(src) => {
-            setCurrentVideo(src);
-            setIsOpen(true);
-          }}
-        />
+        <Suspense fallback={<div className="h-screen w-full flex items-center justify-center">Loading Feed...</div>}>
+          <VideoSection
+            onSelectVideo={(src) => {
+              setCurrentVideo(src);
+              setIsOpen(true);
+            }}
+          />
+        </Suspense>
       </div>
 
       {isOpen && currentVideo && (

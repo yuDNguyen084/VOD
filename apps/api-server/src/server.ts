@@ -51,8 +51,25 @@ io.on('connection', (socket) => {
 
   // Redis Pub/Sub for worker status
   const subscriber = redis.duplicate();
+  const adminSubscriber = redis.duplicate();
   
   await subscriber.subscribe('worker:job:status');
+  await adminSubscriber.psubscribe('admin:logs:job:*');
+  await adminSubscriber.psubscribe('admin:telemetry:job:*');
+
+  adminSubscriber.on('pmessage', (pattern, channel, message) => {
+    if (channel.startsWith('admin:logs:job:')) {
+      const jobId = channel.split(':').pop();
+      io.emit(`admin:logs:${jobId}`, message);
+    } else if (channel.startsWith('admin:telemetry:job:')) {
+      const jobId = channel.split(':').pop();
+      try {
+        const telemetry = JSON.parse(message);
+        io.emit(`admin:telemetry:${jobId}`, telemetry);
+      } catch (e) {}
+    }
+  });
+  
   subscriber.on('message', async (channel, message) => {
     if (channel === 'worker:job:status') {
       try {

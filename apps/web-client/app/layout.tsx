@@ -1,6 +1,7 @@
 import "./globals.css";
 import { Toaster } from "react-hot-toast";
 import AuthProvider from "@/components/common/AuthProvider";
+import Navbar from "@/components/layout/Navbar";
 
 export default function RootLayout({
   children,
@@ -12,7 +13,10 @@ export default function RootLayout({
       <body>
         <Toaster position="top-center" toastOptions={{ style: { background: '#333', color: '#fff' } }} />
         <AuthProvider>
-          {children}
+          <Navbar />
+          <main className="pl-20 w-full min-h-screen">
+            {children}
+          </main>
         </AuthProvider>
       </body>
     </html>

@@ -15,7 +15,7 @@ type FeedState = {
   currentIndex: number;
   isLoading: boolean;
 
-  fetchVideos: () => Promise<void>;
+  fetchVideos: (query?: string) => Promise<void>;
   setVideos: (videos: VideoItem[]) => void;
   next: () => void;
   prev: () => void;
@@ -29,12 +29,13 @@ export const useFeedStore = create<FeedState>((set, get) => ({
   currentIndex: 0,
   isLoading: false,
 
-  fetchVideos: async () => {
+  fetchVideos: async (query?: string) => {
     set({ isLoading: true });
     try {
       // Assuming GET /videos returns { data: [...], total }
       // Filter by READY status if supported, otherwise filter client side
-      const res = await api.get("/videos");
+      const url = query ? `/videos?search=${encodeURIComponent(query)}` : "/videos";
+      const res = await api.get(url);
       const fetched = res.data.data || [];
       
       const readyVideos = fetched

@@ -2,6 +2,7 @@
 
 import React, { useRef, useEffect, useState } from "react";
 import { useFeedStore } from "@/store/useFeedStore";
+import { useSearchParams } from "next/navigation";
 import Hls from "hls.js";
 
 // HLS-compatible Video Player
@@ -50,12 +51,15 @@ export default function VideoSection({
   onSelectVideo?: (src: string) => void;
 }) {
   const { videos, isLoading, fetchVideos } = useFeedStore();
+  const searchParams = useSearchParams();
+  const search = searchParams?.get("search") || undefined;
+  
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
-    fetchVideos();
-  }, [fetchVideos]);
+    fetchVideos(search);
+  }, [fetchVideos, search]);
 
   useEffect(() => {
     if (videos.length === 0) return;

@@ -89,8 +89,14 @@ api.interceptors.response.use(
         if (typeof window !== 'undefined') {
           localStorage.removeItem('token');
           localStorage.removeItem('refreshToken');
-          toast.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
-          window.location.href = '/login';
+          
+          // Only redirect to login if we are actually trying to access a protected route
+          // Don't forcefully kick out guests browsing the homepage or feed
+          const isPublicRoute = originalRequest.url?.includes('/videos') && originalRequest.method?.toLowerCase() === 'get';
+          if (!isPublicRoute) {
+            toast.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+            window.location.href = '/login';
+          }
         }
         return Promise.reject(refreshError);
       } finally {

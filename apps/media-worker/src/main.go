@@ -30,6 +30,16 @@ func main() {
 	uploadPath := os.Getenv("UPLOAD_PATH")
 	redisAddr := os.Getenv("REDIS_ADDR")
 	if redisAddr == "" {
+		// Dùng biến REDIS_URL nếu có (ví dụ: redis://redis:6379 -> cắt lấy host:port)
+		redisUrl := os.Getenv("REDIS_URL")
+		if redisUrl != "" {
+			opts, err := redis.ParseURL(redisUrl)
+			if err == nil {
+				redisAddr = opts.Addr
+			}
+		}
+	}
+	if redisAddr == "" {
 		redisAddr = "localhost:6379"
 	}
 

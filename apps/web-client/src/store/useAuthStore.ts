@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { api } from "../services/api";
 
-type Role = "viewer" | "creator" | "admin";
+type Role = "viewer" | "creator" | "admin" | "USER" | "CREATOR" | "ADMIN";
 
 type User = {
   id: string;

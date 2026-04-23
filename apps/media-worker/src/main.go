@@ -12,7 +12,9 @@ import (
 
 	"media-worker/src/consumers"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/joho/godotenv"
 	"github.com/redis/go-redis/v9"
@@ -59,11 +61,29 @@ func main() {
 	}
 
 	// Khởi tạo S3 Client
-	awsCfg, err := config.LoadDefaultConfig(context.Background())
+	s3Region := os.Getenv("S3_REGION")
+	s3AccessKey := os.Getenv("S3_ACCESS_KEY")
+	s3SecretKey := os.Getenv("S3_SECRET_KEY")
+	s3Endpoint := os.Getenv("S3_ENDPOINT")
+
+	cfgOpts := []func(*config.LoadOptions) error{
+		config.WithRegion(s3Region),
+		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(s3AccessKey, s3SecretKey, "")),
+	}
+
+	awsCfg, err := config.LoadDefaultConfig(context.Background(), cfgOpts...)
 	if err != nil {
 		log.Fatalf("unable to load AWS SDK config: %v", err)
 	}
-	s3Client := s3.NewFromConfig(awsCfg)
+
+	s3ClientOpts := []func(*s3.Options){}
+	if s3Endpoint != "" {
+		s3ClientOpts = append(s3ClientOpts, func(o *s3.Options) {
+			o.BaseEndpoint = aws.String(s3Endpoint)
+			o.UsePathStyle = true
+		})
+	}
+	s3Client := s3.NewFromConfig(awsCfg, s3ClientOpts...)
 
 	// Stage 1 & Stage 2: Graceful Shutdown, System Telemetry, Worker Pool in Consumer
 	ctx, cancel := context.WithCancel(context.Background())

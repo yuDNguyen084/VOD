@@ -16,13 +16,13 @@ export class AuthService {
 
   static async register(data: any) {
     const hashed = await bcrypt.hash(data.password, 10);
-    const user = await AuthRepository.create({ email: data.email, passwordHash: hashed });
-    return { message: 'Đăng ký thành công', userId: user.id };
+    const user = await AuthRepository.create({ email: data.email, passwordHash: hashed, role: 'CREATOR' });
+    return { message: 'Register successfully', userId: user.id };
   }
 
   static async login(email: string, pass: string) {
     const user = await AuthRepository.findByEmail(email);
-    if (!user || !(await bcrypt.compare(pass, user.passwordHash))) throw new AppError(401, 'Sai email hoặc mật khẩu');
+    if (!user || !(await bcrypt.compare(pass, user.passwordHash))) throw new AppError(401, 'Invalid email or password');
     
     const tokens = this.generateTokens(user);
     
@@ -38,10 +38,10 @@ export class AuthService {
       const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET!) as any;
       
       const user = await AuthRepository.findById(decoded.sub);
-      if (!user || !user.refreshToken) throw new AppError(401, 'Truy cập bị từ chối');
+      if (!user || !user.refreshToken) throw new AppError(401, 'Access denied');
 
       const rtMatches = await bcrypt.compare(refreshToken, user.refreshToken);
-      if (!rtMatches) throw new AppError(401, 'Token không hợp lệ');
+      if (!rtMatches) throw new AppError(401, 'Invalid token');
 
       const tokens = this.generateTokens(user);
       
@@ -50,12 +50,12 @@ export class AuthService {
 
       return tokens;
     } catch (e) {
-      throw new AppError(401, 'Refresh Token không hợp lệ hoặc đã hết hạn');
+      throw new AppError(401, 'Refresh Token is invalid or has expired');
     }
   }
 
   static async logout(userId: string) {
     await AuthRepository.updateRefreshToken(userId, null);
-    return { success: true, message: 'Đã đăng xuất' };
+    return { success: true, message: 'Logged out successfully' };
   }
 }

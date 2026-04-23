@@ -1,7 +1,48 @@
 "use client";
 
-import { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import { useFeedStore } from "@/store/useFeedStore";
+import Hls from "hls.js";
+
+// HLS-compatible Video Player
+const HlsPlayer = React.forwardRef<HTMLVideoElement, any>(({ src, ...props }, ref) => {
+  const internalRef = useRef<HTMLVideoElement | null>(null);
+
+  // Sync the forwarded ref
+  useEffect(() => {
+    if (typeof ref === "function") {
+      ref(internalRef.current);
+    } else if (ref) {
+      (ref as React.MutableRefObject<HTMLVideoElement | null>).current = internalRef.current;
+    }
+  }, [ref]);
+
+  useEffect(() => {
+    const video = internalRef.current;
+    if (!video || !src) return;
+
+    let hls: Hls;
+    if (Hls.isSupported()) {
+      hls = new Hls({
+        autoStartLoad: true,
+        capLevelToPlayerSize: true, // Auto-adapt ABR to screen resolution
+      });
+      hls.loadSource(src);
+      hls.attachMedia(video);
+    } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+      video.src = src;
+    }
+
+    return () => {
+      if (hls) {
+        hls.destroy();
+      }
+    };
+  }, [src]);
+
+  return <video ref={internalRef} {...props} />;
+});
+HlsPlayer.displayName = "HlsPlayer";
 
 export default function VideoSection({
   onSelectVideo,
@@ -57,16 +98,18 @@ export default function VideoSection({
       {videos.map((video, i) => (
         <div
           key={video.id}
-          className="h-screen snap-start relative flex items-center justify-center z-0"
+          className="h-screen snap-start relative flex items-center justify-center z-0 bg-black"
         >
-          <video
+          <HlsPlayer
             data-index={i}
-            ref={(el) => { videoRefs.current[i] = el; }}
+            ref={(el: HTMLVideoElement | null) => { videoRefs.current[i] = el; }}
             src={video.src}
-            className="w-full h-full object-cover"
+            // object-contain ensures the player adapts to the screen resolution without cropping
+            className="w-full h-full object-contain"
             muted
             loop
             playsInline
+            controls
             onClick={() => onSelectVideo?.(video.src)}
           />
 

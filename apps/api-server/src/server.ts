@@ -4,6 +4,7 @@ import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import app from './app';
 import { QueueService } from './common/services/queue.service';
+import { StorageService } from './common/services/storage.service';
 import { prisma } from './database';
 import { redis } from './redis';
 import { logger } from './common/utils/logger';
@@ -35,6 +36,12 @@ io.on('connection', (socket) => {
 
 (async () => {
   await QueueService.init();
+
+  // Set S3 bucket CORS policy so browsers can PUT directly via presigned URLs
+  await StorageService.ensureS3Cors().catch((err) =>
+    logger.warn(`⚠️  Could not set S3 CORS policy: ${err.message}`)
+  );
+
   server.listen(PORT, () => logger.info(`🚀 Server started on port ${PORT}`));
 
   // Redis Pub/Sub for worker status
@@ -54,9 +61,16 @@ io.on('connection', (socket) => {
           const video = await prisma.video.findUnique({ where: { id: videoId } });
           
           if (video) {
+            const hlsUrl = status === 'COMPLETED' 
+              ? `https://${process.env.S3_BUCKET_NAME}.s3.${process.env.S3_REGION}.amazonaws.com/hls/${video.id}/master.m3u8`
+              : null;
+              
             await prisma.video.update({
               where: { id: videoId },
-              data: { status: processedStatus }
+              data: { 
+                status: processedStatus,
+                ...(hlsUrl ? { hlsUrl } : {})
+              }
             });
 
             // Notify client via websocket

@@ -8,7 +8,7 @@ import { Role } from '@prisma/client';
 
 const router = Router();
 
-router.get('/', authorize(), cache(60), VideoController.getVideos);
+router.get('/', VideoController.getVideos);
 router.post('/upload', authorize([Role.CREATOR, Role.ADMIN]), validate(videoSchemas.upload), VideoController.requestUpload);
 router.post('/:id/confirm', authorize([Role.CREATOR, Role.ADMIN]), VideoController.confirm);
 router.delete('/:id', authorize([Role.CREATOR, Role.ADMIN]), VideoController.delete);

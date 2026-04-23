@@ -21,6 +21,27 @@ export class StorageService {
     }));
   }
 
+  static async ensureS3Policy() {
+    const policy = {
+      Version: "2012-10-17",
+      Statement: [
+        {
+          Sid: "PublicReadGetObject",
+          Effect: "Allow",
+          Principal: "*",
+          Action: ["s3:GetObject"],
+          Resource: [`arn:aws:s3:::${process.env.S3_BUCKET_NAME}/*`]
+        }
+      ]
+    };
+    
+    const { PutBucketPolicyCommand } = await import('@aws-sdk/client-s3');
+    await s3Client.send(new PutBucketPolicyCommand({
+      Bucket: process.env.S3_BUCKET_NAME!,
+      Policy: JSON.stringify(policy)
+    }));
+  }
+
   static async getPresignedPutUrl(key: string) {
     return getSignedUrl(s3Client, new PutObjectCommand({ Bucket: process.env.S3_BUCKET_NAME, Key: key }), { expiresIn: 3600 });
   }

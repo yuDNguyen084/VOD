@@ -77,6 +77,14 @@ export default function Navbar() {
                       </>
                     ) : (
                       <>
+                        {user.role?.toUpperCase() === 'ADMIN' && (
+                          <button
+                            onClick={() => router.push("/dashboard")}
+                            className="block w-full text-left py-1 text-blue-400 hover:text-blue-300"
+                          >
+                            Dashboard
+                          </button>
+                        )}
                         <button
                           onClick={() => router.push("/upload")}
                           className="block w-full text-left py-1"

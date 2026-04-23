@@ -42,6 +42,11 @@ io.on('connection', (socket) => {
     logger.warn(`⚠️  Could not set S3 CORS policy: ${err.message}`)
   );
 
+  // Set S3 bucket policy to allow public reads for the HLS videos
+  await StorageService.ensureS3Policy().catch((err) =>
+    logger.warn(`⚠️  Could not set S3 Bucket Policy: ${err.message}`)
+  );
+
   server.listen(PORT, () => logger.info(`🚀 Server started on port ${PORT}`));
 
   // Redis Pub/Sub for worker status

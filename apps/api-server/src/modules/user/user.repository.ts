@@ -12,19 +12,19 @@ const userPublicSelect = {
 
 export class UserRepository {
   static findById = (id: string) =>
-    (prisma.user as any).findUnique({
+    prisma.user.findUnique({
       where: { id },
       select: userPublicSelect,
     });
 
   static findByUsername = (username: string) =>
-    (prisma.user as any).findUnique({
+    prisma.user.findUnique({
       where: { username },
       select: userPublicSelect,
     });
 
   static searchByUsername = (query: string, page: number, limit: number) =>
-    (prisma.user as any).findMany({
+    prisma.user.findMany({
       where: { username: { contains: query, mode: 'insensitive' } },
       select: userPublicSelect,
       skip: (page - 1) * limit,
@@ -32,12 +32,12 @@ export class UserRepository {
     });
 
   static countByUsername = (query: string) =>
-    (prisma.user as any).count({
+    prisma.user.count({
       where: { username: { contains: query, mode: 'insensitive' } },
     });
 
   static update = (id: string, data: any) =>
-    (prisma.user as any).update({
+    prisma.user.update({
       where: { id },
       data,
       select: userPublicSelect,

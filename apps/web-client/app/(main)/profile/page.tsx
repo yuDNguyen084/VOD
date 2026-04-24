@@ -34,6 +34,7 @@ export default function MyProfilePage() {
     fetchMyProfile,
     updateProfile,
     fetchProfileVideos,
+    reset,
   } = useProfileStore();
 
   const [editing, setEditing] = useState(false);
@@ -45,8 +46,9 @@ export default function MyProfilePage() {
       router.push("/login");
       return;
     }
+    reset(); // Clear old data first
     fetchMyProfile();
-  }, [authUser, fetchMyProfile, router]);
+  }, [authUser, fetchMyProfile, router, reset]);
 
   useEffect(() => {
     if (profile) {
@@ -231,11 +233,7 @@ export default function MyProfilePage() {
                   src: v.hlsUrl || "",
                   thumb: "https://images.unsplash.com/photo-1616423640778-28d1b53229b4?w=800",
                   status: v.status,
-                  creator: profile ? { 
-                    id: profile.id, 
-                    username: profile.username, 
-                    avatarUrl: profile.avatarUrl 
-                  } : undefined
+                  creator: v.creator // Use data from backend
                 };
                 return <VideoCard key={v.id} video={videoItem as any} />;
               })}

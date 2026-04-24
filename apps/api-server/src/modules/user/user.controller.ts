@@ -22,7 +22,7 @@ export class UserController {
   static getUserVideos = catchAsync(async (req: Request, res: Response) => {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 8;
-    res.json(await UserService.getUserVideos(req.params.id as string, page, limit));
+    res.json(await UserService.getUserVideos(req.params.identifier as string, page, limit));
   });
 
   /** GET /users/search?q=username&page=1 */

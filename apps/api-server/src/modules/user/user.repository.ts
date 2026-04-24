@@ -55,6 +55,13 @@ export class UserRepository {
         hlsUrl: true,
         status: true,
         createdAt: true,
+        creator: {
+          select: {
+            id: true,
+            username: true,
+            avatarUrl: true,
+          }
+        }
       },
     });
 

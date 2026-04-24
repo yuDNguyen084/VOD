@@ -20,6 +20,11 @@ export type ProfileVideo = {
   hlsUrl?: string;
   status: string;
   createdAt: string;
+  creator?: {
+    id: string;
+    username?: string;
+    avatarUrl?: string;
+  };
 };
 
 type ProfileStore = {

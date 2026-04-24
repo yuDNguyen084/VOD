@@ -24,10 +24,17 @@ export class UserService {
     return UserRepository.update(userId, safe);
   }
 
-  static async getUserVideos(userId: string, page = 1, limit = 8) {
+  static async getUserVideos(identifier: string, page = 1, limit = 8) {
+    // Resolve identifier to a real user first
+    let user = await UserRepository.findById(identifier).catch(() => null);
+    if (!user) {
+      user = await UserRepository.findByUsername(identifier);
+    }
+    if (!user) throw new AppError(404, 'User not found');
+
     const [data, total] = await Promise.all([
-      UserRepository.findUserVideos(userId, page, limit),
-      UserRepository.countUserVideos(userId),
+      UserRepository.findUserVideos(user.id, page, limit),
+      UserRepository.countUserVideos(user.id),
     ]);
     return { data, total, page, limit };
   }

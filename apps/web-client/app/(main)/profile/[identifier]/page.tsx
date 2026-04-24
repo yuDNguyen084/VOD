@@ -144,11 +144,7 @@ export default function PublicProfilePage() {
                   src: v.hlsUrl || "",
                   thumb: "https://images.unsplash.com/photo-1616423640778-28d1b53229b4?w=800",
                   status: v.status,
-                  creator: profile ? { 
-                    id: profile.id, 
-                    username: profile.username, 
-                    avatarUrl: profile.avatarUrl 
-                  } : undefined
+                  creator: v.creator // Use data from backend
                 };
                 return <VideoCard key={v.id} video={videoItem as any} />;
               })}

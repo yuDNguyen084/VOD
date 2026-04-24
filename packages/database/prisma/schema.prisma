@@ -33,9 +33,14 @@ model User {
   email        String   @unique
   passwordHash String
   role         Role     @default(USER)
+  username     String?  @unique
+  bio          String?
+  avatarUrl    String?
   refreshToken String?
   createdAt    DateTime @default(now())
   videos       Video[]
+
+  @@index([username])
 }
 
 model Video {

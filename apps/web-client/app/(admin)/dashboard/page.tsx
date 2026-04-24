@@ -31,28 +31,49 @@ export default function AdminDashboard() {
     fetchDashboardData();
   }, []);
 
-  // Listen for real-time logs and telemetry when a video is selected
+  // Listen for real-time logs, telemetry, and progress when a video is selected
   useEffect(() => {
-    if (!socket || !selectedVideo?.job) return;
+    if (!socket || !selectedVideo) return;
 
-    const jobId = selectedVideo.job.id;
+    const jobId = selectedVideo.job?.id || selectedVideo.id;
     const logEvent = `admin:logs:${jobId}`;
     const telemetryEvent = `admin:telemetry:${jobId}`;
+    const progressEvent = `admin:progress:${jobId}`;
 
-    setLogs([`> Initializing live log stream for job ${jobId}...`]);
-    setTelemetry({});
+    if (selectedVideo.status === 'READY') {
+      setLogs([
+        `> Initializing live log stream for job ${jobId}...`,
+        `> Job status: COMPLETED`,
+        `> All tasks finished successfully.`,
+        `> HLS manifest generated.`,
+      ]);
+      setTelemetry({ ramUsageMB: 0, cpuUsage: '0%' });
+    } else {
+      setLogs([`> Initializing live log stream for job ${jobId}...`]);
+      setTelemetry({});
+    }
 
     socket.on(logEvent, (message: string) => {
-      setLogs((prev) => [...prev.slice(-50), message]); // Keep last 50 logs
+      setLogs((prev) => [...prev.slice(-50), message]);
     });
 
     socket.on(telemetryEvent, (data: any) => {
       setTelemetry(data);
     });
 
+    socket.on(progressEvent, (data: { progress: number }) => {
+      setVideos((prev) => 
+        prev.map(v => v.id === selectedVideo.id && v.job 
+          ? { ...v, job: { ...v.job, progress: data.progress } } 
+          : v
+        )
+      );
+    });
+
     return () => {
       socket.off(logEvent);
       socket.off(telemetryEvent);
+      socket.off(progressEvent);
     };
   }, [socket, selectedVideo]);
 
@@ -72,8 +93,13 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleJobAction = (id: string, action: string) => {
-    alert(`Triggered action [${action}] on job ${id}. (Backend endpoint not implemented)`);
+  const handleJobAction = async (jobId: string, action: string) => {
+    try {
+      await api.post(`/admin/jobs/${jobId}/action`, { action });
+      fetchDashboardData();
+    } catch (err) {
+      console.error(`Failed to ${action} job`, err);
+    }
   };
 
   if (loading) return <div className="min-h-screen bg-black text-white p-10 flex items-center justify-center">Loading Admin Panel...</div>;
@@ -126,18 +152,25 @@ export default function AdminDashboard() {
                     </span>
                   </div>
 
-                  {v.job && (
+                  {(v.job || v.status === 'READY') && (
                     <div className="flex items-center gap-4 mt-2">
                       <div className="flex-1 bg-neutral-800 rounded-full h-2">
-                        <div className="bg-cyan-400 h-2 rounded-full transition-all duration-500" style={{ width: `${v.job.progress}%` }} />
+                        <div 
+                          className={`${v.status === 'READY' ? 'bg-green-500' : 'bg-cyan-400'} h-2 rounded-full transition-all duration-500`} 
+                          style={{ width: `${v.status === 'READY' ? 100 : (v.job?.progress || 0)}%` }} 
+                        />
                       </div>
-                      <span className="text-xs font-bold text-cyan-400 w-8">{v.job.progress}%</span>
+                      <span className={`text-xs font-bold ${v.status === 'READY' ? 'text-green-400' : 'text-cyan-400'} w-8`}>
+                        {v.status === 'READY' ? 100 : (v.job?.progress || 0)}%
+                      </span>
                       
-                      <div className="flex items-center gap-2 ml-4">
-                        <button onClick={(e) => { e.stopPropagation(); handleJobAction(v.job!.id, 'PAUSE'); }} className="p-1.5 rounded bg-neutral-800 hover:bg-yellow-500/20 text-neutral-400 hover:text-yellow-400 transition" title="Pause"><Pause size={14}/></button>
-                        <button onClick={(e) => { e.stopPropagation(); handleJobAction(v.job!.id, 'RESTART'); }} className="p-1.5 rounded bg-neutral-800 hover:bg-blue-500/20 text-neutral-400 hover:text-blue-400 transition" title="Restart"><RotateCcw size={14}/></button>
-                        <button onClick={(e) => { e.stopPropagation(); handleJobAction(v.job!.id, 'CANCEL'); }} className="p-1.5 rounded bg-neutral-800 hover:bg-red-500/20 text-neutral-400 hover:text-red-400 transition" title="Cancel"><XCircle size={14}/></button>
-                      </div>
+                      {v.status !== 'READY' && v.job && (
+                        <div className="flex items-center gap-2 ml-4">
+                          <button onClick={(e) => { e.stopPropagation(); handleJobAction(v.job!.id, 'PAUSE'); }} className="p-1.5 rounded bg-neutral-800 hover:bg-yellow-500/20 text-neutral-400 hover:text-yellow-400 transition" title="Pause"><Pause size={14}/></button>
+                          <button onClick={(e) => { e.stopPropagation(); handleJobAction(v.job!.id, 'RESTART'); }} className="p-1.5 rounded bg-neutral-800 hover:bg-blue-500/20 text-neutral-400 hover:text-blue-400 transition" title="Restart"><RotateCcw size={14}/></button>
+                          <button onClick={(e) => { e.stopPropagation(); handleJobAction(v.job!.id, 'CANCEL'); }} className="p-1.5 rounded bg-neutral-800 hover:bg-red-500/20 text-neutral-400 hover:text-red-400 transition" title="Cancel"><XCircle size={14}/></button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -159,7 +192,7 @@ export default function AdminDashboard() {
                 <div className="bg-neutral-900/50 p-4 rounded-xl border border-white/5 grid grid-cols-2 gap-4 text-sm">
                    <div>
                      <p className="text-neutral-500 mb-1 font-sans">Memory Usage</p>
-                     <p className="font-bold text-green-400">{telemetry.ramUsageMB ? `${telemetry.ramUsageMB} MB` : '---'}</p>
+                     <p className="font-bold text-green-400">{telemetry.ramUsageMB !== undefined ? `${telemetry.ramUsageMB} MB` : '---'}</p>
                    </div>
                    <div>
                      <p className="text-neutral-500 mb-1 font-sans">CPU Usage</p>
@@ -171,14 +204,14 @@ export default function AdminDashboard() {
                   {logs.map((log, i) => (
                     <p key={i} className="mb-1">{log}</p>
                   ))}
-                  {selectedVideo.status !== 'READY' && selectedVideo.status !== 'FAILED' && (
+                  {selectedVideo.status !== 'READY' && selectedVideo.status !== 'FAILED' && logs.length === 1 && (
                     <p className="animate-pulse text-white mt-2">Waiting for worker telemetry...</p>
                   )}
                 </div>
               </div>
             ) : (
-              <div className="flex-1 flex items-center justify-center text-neutral-600 text-sm font-sans">
-                Select a job from the list to view live telemetry.
+              <div className="flex-1 flex items-center justify-center text-neutral-600 text-sm font-sans text-center px-4">
+                Select a job from the list to view live telemetry and logs.
               </div>
             )}
           </div>

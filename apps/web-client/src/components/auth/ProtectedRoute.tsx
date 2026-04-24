@@ -27,8 +27,17 @@ export default function ProtectedRoute({ children, requiredRole }: Props) {
       return;
     }
 
-    if (requiredRole && (!user.role || user.role.toUpperCase() !== requiredRole.toUpperCase())) {
-      router.replace("/");
+    if (requiredRole) {
+      const userRole = (user.role || "").toUpperCase();
+      const targetRole = requiredRole.toUpperCase();
+      
+      const isAllowed = 
+        userRole === "ADMIN" || 
+        userRole === targetRole;
+
+      if (!isAllowed) {
+        router.replace("/");
+      }
     }
   }, [user, requiredRole, isHydrated]);
 
@@ -37,7 +46,11 @@ export default function ProtectedRoute({ children, requiredRole }: Props) {
 
   if (!user) return null;
 
-  if (requiredRole && (!user.role || user.role.toUpperCase() !== requiredRole.toUpperCase())) return null;
+  const userRole = (user.role || "").toUpperCase();
+  const targetRole = (requiredRole || "").toUpperCase();
+  const isAllowed = !requiredRole || userRole === "ADMIN" || userRole === targetRole;
+
+  if (!isAllowed) return null;
 
   return <>{children}</>;
 }

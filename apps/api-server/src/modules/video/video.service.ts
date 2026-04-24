@@ -8,8 +8,34 @@ import { Role, VideoStatus } from '@prisma/client';
 
 export class VideoService {
   static async list(query: any) {
-    const pq = getPrismaQuery(query, ['title']);
-    const [data, total] = await Promise.all([VideoRepository.findMany(pq), VideoRepository.count(pq.where)]);
+    const { search, page = 1, limit = 8, sortBy = 'createdAt:desc', ...filters } = query;
+    const skip = (Number(page) - 1) * Number(limit);
+    const take = Number(limit);
+    const [field, order] = sortBy.split(':');
+
+    let where: any = { ...filters, deletedAt: null };
+
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        {
+          creator: {
+            username: { contains: search, mode: 'insensitive' }
+          }
+        }
+      ];
+    }
+
+    const [data, total] = await Promise.all([
+      VideoRepository.findMany({
+        where,
+        orderBy: { [field]: order },
+        skip,
+        take,
+      }),
+      VideoRepository.count(where)
+    ]);
+    
     return { data, total };
   }
 

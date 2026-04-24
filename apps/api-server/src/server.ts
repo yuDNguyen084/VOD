@@ -67,8 +67,16 @@ io.on('connection', (socket) => {
         const telemetry = JSON.parse(message);
         io.emit(`admin:telemetry:${jobId}`, telemetry);
       } catch (e) {}
+    } else if (channel.startsWith('admin:progress:job:')) {
+      const jobId = channel.split(':').pop();
+      try {
+        const data = JSON.parse(message);
+        io.emit(`admin:progress:${jobId}`, data);
+      } catch (e) {}
     }
   });
+
+  await adminSubscriber.psubscribe('admin:progress:job:*');
   
   subscriber.on('message', async (channel, message) => {
     if (channel === 'worker:job:status') {

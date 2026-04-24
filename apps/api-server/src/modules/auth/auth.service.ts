@@ -16,7 +16,12 @@ export class AuthService {
 
   static async register(data: any) {
     const hashed = await bcrypt.hash(data.password, 10);
-    const user = await AuthRepository.create({ email: data.email, passwordHash: hashed, role: 'CREATOR' });
+    const user = await AuthRepository.create({ 
+      email: data.email, 
+      username: data.username, // Added this
+      passwordHash: hashed, 
+      role: 'CREATOR' 
+    });
     return { message: 'Register successfully', userId: user.id };
   }
 

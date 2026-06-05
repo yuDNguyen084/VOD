@@ -17,7 +17,7 @@
     "db:migrate": "npm run migrate --workspace=packages/database",
     "db:seed": "npm run seed --workspace=packages/database",
     "db:studio": "npm run studio --workspace=packages/database",
-    "lint": "npm run lint --workspaces --if-present",
+    "lint": "npm run lint --workspace=apps/web-client",
     "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",

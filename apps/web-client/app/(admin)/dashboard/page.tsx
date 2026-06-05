@@ -27,6 +27,31 @@ export default function AdminDashboard() {
   const [telemetry, setTelemetry] = useState<{ ramUsageMB?: number; cpuUsage?: string }>({});
   const socket = useSocket();
 
+  const fetchDashboardData = async () => {
+    setLoading(true);
+    try {
+      const [pipelineRes, videosRes] = await Promise.all([
+        api.get("/admin/pipeline/status"),
+        api.get("/videos?limit=20"),
+      ]);
+      setPipelineStats(pipelineRes.data);
+      setVideos(videosRes.data.data || []);
+    } catch (err) {
+      console.error("Failed to load admin dashboard", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleJobAction = async (jobId: string, action: string) => {
+    try {
+      await api.post(`/admin/jobs/${jobId}/action`, { action });
+      fetchDashboardData();
+    } catch (err) {
+      console.error(`Failed to ${action} job`, err);
+    }
+  };
+
   useEffect(() => {
     fetchDashboardData();
   }, []);
@@ -76,31 +101,6 @@ export default function AdminDashboard() {
       socket.off(progressEvent);
     };
   }, [socket, selectedVideo]);
-
-  const fetchDashboardData = async () => {
-    setLoading(true);
-    try {
-      const [pipelineRes, videosRes] = await Promise.all([
-        api.get("/admin/pipeline/status"),
-        api.get("/videos?limit=20"),
-      ]);
-      setPipelineStats(pipelineRes.data);
-      setVideos(videosRes.data.data || []);
-    } catch (err) {
-      console.error("Failed to load admin dashboard", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleJobAction = async (jobId: string, action: string) => {
-    try {
-      await api.post(`/admin/jobs/${jobId}/action`, { action });
-      fetchDashboardData();
-    } catch (err) {
-      console.error(`Failed to ${action} job`, err);
-    }
-  };
 
   if (loading) return <div className="min-h-screen bg-black text-white p-10 flex items-center justify-center">Loading Admin Panel...</div>;
 

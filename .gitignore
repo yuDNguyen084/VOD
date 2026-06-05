@@ -179,3 +179,8 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+infrastructure/
+
+API_FIX_PLAN.md
+readme.txt

@@ -1,8 +1,23 @@
-import { PutObjectCommand, DeleteObjectCommand, PutBucketCorsCommand } from '@aws-sdk/client-s3';
+import { PutObjectCommand, DeleteObjectCommand, PutBucketCorsCommand, HeadBucketCommand, CreateBucketCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { s3Client } from '../../s3';
 
 export class StorageService {
+  static async ensureBucketExists() {
+    const bucketName = process.env.S3_BUCKET_NAME!;
+    try {
+      await s3Client.send(new HeadBucketCommand({ Bucket: bucketName }));
+    } catch (error: any) {
+      if (error.name === 'NotFound' || error.$metadata?.httpStatusCode === 404) {
+        console.log(`🪣 Bucket ${bucketName} not found. Creating...`);
+        await s3Client.send(new CreateBucketCommand({ Bucket: bucketName }));
+        console.log(`🪣 Bucket ${bucketName} created successfully.`);
+      } else {
+        throw error;
+      }
+    }
+  }
+
   static async ensureS3Cors() {
     const corsOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000').split(',').map(o => o.trim());
     await s3Client.send(new PutBucketCorsCommand({

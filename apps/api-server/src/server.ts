@@ -8,6 +8,8 @@ import { StorageService } from './common/services/storage.service';
 import { prisma } from './database';
 import { redis } from './redis';
 import { logger } from './common/utils/logger';
+import { AdminSubscriber } from './modules/admin/admin.subscriber';
+import { WorkerSubscriber } from './modules/worker/worker.subscriber';
 
 const PORT = process.env.PORT || 4000;
 
@@ -37,6 +39,11 @@ io.on('connection', (socket) => {
 (async () => {
   await QueueService.init();
 
+  // Ensure S3 bucket exists
+  await StorageService.ensureBucketExists().catch((err) =>
+    logger.warn(`⚠️  Could not ensure S3 bucket exists: ${err.message}`)
+  );
+
   // Set S3 bucket CORS policy so browsers can PUT directly via presigned URLs
   await StorageService.ensureS3Cors().catch((err) =>
     logger.warn(`⚠️  Could not set S3 CORS policy: ${err.message}`)
@@ -49,77 +56,15 @@ io.on('connection', (socket) => {
 
   server.listen(PORT, () => logger.info(`🚀 Server started on port ${PORT}`));
 
-  // Redis Pub/Sub for worker status
-  const subscriber = redis.duplicate();
-  const adminSubscriber = redis.duplicate();
-  
-  await subscriber.subscribe('worker:job:status');
-  await adminSubscriber.psubscribe('admin:logs:job:*');
-  await adminSubscriber.psubscribe('admin:telemetry:job:*');
-
-  adminSubscriber.on('pmessage', (pattern, channel, message) => {
-    if (channel.startsWith('admin:logs:job:')) {
-      const jobId = channel.split(':').pop();
-      io.emit(`admin:logs:${jobId}`, message);
-    } else if (channel.startsWith('admin:telemetry:job:')) {
-      const jobId = channel.split(':').pop();
-      try {
-        const telemetry = JSON.parse(message);
-        io.emit(`admin:telemetry:${jobId}`, telemetry);
-      } catch (e) {}
-    } else if (channel.startsWith('admin:progress:job:')) {
-      const jobId = channel.split(':').pop();
-      try {
-        const data = JSON.parse(message);
-        io.emit(`admin:progress:${jobId}`, data);
-      } catch (e) {}
-    }
-  });
-
-  await adminSubscriber.psubscribe('admin:progress:job:*');
-  
-  subscriber.on('message', async (channel, message) => {
-    if (channel === 'worker:job:status') {
-      try {
-        const data = JSON.parse(message);
-        logger.info(`Received worker status update: ${message}`);
-        
-        const { videoId, status } = data;
-        
-        if (videoId && status) {
-          const processedStatus = status === 'COMPLETED' ? 'READY' : 'FAILED';
-          const video = await prisma.video.findUnique({ where: { id: videoId } });
-          
-          if (video) {
-            const hlsUrl = status === 'COMPLETED' 
-              ? `https://${process.env.S3_BUCKET_NAME}.s3.${process.env.S3_REGION}.amazonaws.com/hls/${video.id}/master.m3u8`
-              : null;
-              
-            await prisma.video.update({
-              where: { id: videoId },
-              data: { 
-                status: processedStatus,
-                ...(hlsUrl ? { hlsUrl } : {})
-              }
-            });
-
-            // Notify client via websocket
-            io.to(`user-${video.creatorId}`).emit(
-              status === 'COMPLETED' ? 'video-processing-complete' : 'video-processing-failed',
-              { videoId: video.id, title: video.title, status: processedStatus }
-            );
-          }
-        }
-      } catch (err) {
-        logger.error(`Failed to process worker status: ${err}`);
-      }
-    }
-  });
+  // Initialize domain-specific Subscribers
+  await AdminSubscriber.init(io);
+  await WorkerSubscriber.init(io);
 
   process.on('SIGINT', async () => {
     logger.info('Gracefully shutting down...');
     server.close(async () => {
-      await subscriber.quit();
+      await AdminSubscriber.cleanup();
+      await WorkerSubscriber.cleanup();
       await prisma.$disconnect();
       await redis.quit();
       process.exit(0);

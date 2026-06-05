@@ -15,7 +15,8 @@ jobs:
           node-version: 20
           cache: 'npm'
       - run: npm install
-      - run: npm run lint
+      - run: npm run build:web
+      - run: npm run lint --workspace=apps/web-client
 
   build-and-push:
     runs-on: ubuntu-latest

@@ -54,6 +54,8 @@ jobs:
           file: ${{ matrix.dockerfile }}
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/${{ matrix.service }}:latest
+          build-args: |
+            NEXT_PUBLIC_API_URL=http://${{ secrets.SERVER_HOST }}:4000/api/v1
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,scope=${{ matrix.service }},mode=max
 

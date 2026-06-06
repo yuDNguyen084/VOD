@@ -8,8 +8,17 @@ import { errorHandler } from './common/middlewares/error.middleware';
 
 const app = express();
 app.use(helmet());
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  process.env.CORS_ORIGIN,
+  'http://localhost:3000',
+].filter(Boolean) as string[];
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || process.env.CORS_ORIGIN || 'http://localhost:3000',
+  origin: (origin, callback) => {
+    // Allow any origin dynamically (essential for dynamic EC2 IPs and AWS public DNS hosts)
+    callback(null, true);
+  },
   credentials: true,
 }));
 app.use(compression());

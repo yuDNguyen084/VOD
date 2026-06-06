@@ -100,3 +100,9 @@ jobs:
             docker compose pull
             docker compose up -d --remove-orphans
 
+            echo "Waiting for database to start..."
+            sleep 5
+
+            echo "Running prisma db push..."
+            docker compose exec -T api-server npx prisma db push --schema=../../packages/database/prisma/schema.prisma --accept-data-loss
+

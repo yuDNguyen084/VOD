@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../store/useAuthStore';
@@ -6,35 +6,41 @@ import { useAuthStore } from '../store/useAuthStore';
 const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:4000';
 
 export const useSocket = () => {
-  const socketRef = useRef<Socket | null>(null);
+  const [socket, setSocket] = useState<Socket | null>(null);
   const { user } = useAuthStore();
 
   useEffect(() => {
     if (!user) return;
 
-    socketRef.current = io(SOCKET_URL, {
+    const socketInstance = io(SOCKET_URL, {
       withCredentials: true,
     });
 
-    const socket = socketRef.current;
-
-    socket.on('connect', () => {
-      console.log('🔗 WebSocket connected');
-      socket.emit('joinUserRoom', user.id);
+    // Update state asynchronously to prevent synchronous cascading render warning
+    Promise.resolve().then(() => {
+      setSocket(socketInstance);
     });
 
-    socket.on('video-processing-complete', (data) => {
+    socketInstance.on('connect', () => {
+      console.log('🔗 WebSocket connected');
+      socketInstance.emit('joinUserRoom', user.id);
+    });
+
+    socketInstance.on('video-processing-complete', (data) => {
       toast.success(`Video "${data.title}" is ready!`);
     });
 
-    socket.on('video-processing-failed', (data) => {
+    socketInstance.on('video-processing-failed', (data) => {
       toast.error(`Video "${data.title}" processing failed.`);
     });
 
     return () => {
-      socket.disconnect();
+      socketInstance.disconnect();
+      Promise.resolve().then(() => {
+        setSocket(null);
+      });
     };
   }, [user]);
 
-  return socketRef.current;
+  return socket;
 };

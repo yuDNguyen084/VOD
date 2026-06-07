@@ -18,7 +18,9 @@ const server = http.createServer(app);
 // Export io so services can use it (or attach to app)
 export const io = new SocketIOServer(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: (requestOrigin, callback) => {
+      callback(null, true);
+    },
     credentials: true
   }
 });

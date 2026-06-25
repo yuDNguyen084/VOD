@@ -21,4 +21,16 @@ router.use('/admin', adminRoutes);
 router.use('/analytics', analyticsRoutes);
 router.use('/creator', creatorRoutes);
 
+import { QueueService } from '../common/services/queue.service';
+
+router.post('/test-flood', async (req, res) => {
+  await QueueService.pushJob({ 
+    jobId: `test-job-${Date.now()}-${Math.floor(Math.random() * 1000)}`, 
+    videoId: 'test-video', 
+    rawS3Key: 'fake.mp4', 
+    hlsS3Key: 'fake-hls' 
+  });
+  res.status(200).json({ queued: true });
+});
+
 export default router;

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sync"
@@ -93,13 +94,19 @@ func (w *MediaWorker) processSingleJob(globalCtx context.Context, job *pb.VideoJ
 	logChan := fmt.Sprintf("admin:logs:job:%s", job.JobId)
 
 	// LUỒNG CHÍNH CỦA WORKER
-	// 1. Tải file từ S3
-	w.redis.Publish(ctx, logChan, "Downloading file from S3...")
-	if err := s3service.DownloadRawVideo(ctx, w.s3Client, job.RawS3Key, localInput); err != nil {
-		errMsg := fmt.Sprintf("[JOB ERROR %s] Failed to download file: %v", job.JobId, err)
-		log.Println(errMsg)
-		w.redis.Publish(ctx, logChan, errMsg)
-		return
+	// 1. Tải file từ S3 (Hoặc tự tạo file nếu là test k6)
+	if job.RawS3Key == "fake.mp4" {
+		w.redis.Publish(ctx, logChan, "[STRESS TEST] Generating dummy 30s 1080p video to stress CPU/RAM...")
+		// Dùng FFmpeg tự tạo 1 file ảo siêu nặng để test (thêm yuv420p để tương thích HLS)
+		exec.Command("ffmpeg", "-y", "-f", "lavfi", "-i", "testsrc=duration=30:size=1920x1080:rate=30", "-pix_fmt", "yuv420p", localInput).Run()
+	} else {
+		w.redis.Publish(ctx, logChan, "Downloading file from S3...")
+		if err := s3service.DownloadRawVideo(ctx, w.s3Client, job.RawS3Key, localInput); err != nil {
+			errMsg := fmt.Sprintf("[JOB ERROR %s] Failed to download file: %v", job.JobId, err)
+			log.Println(errMsg)
+			w.redis.Publish(ctx, logChan, errMsg)
+			return
+		}
 	}
 
 	// 2. Chạy FFmpeg
@@ -113,7 +120,6 @@ func (w *MediaWorker) processSingleJob(globalCtx context.Context, job *pb.VideoJ
 		errMsg := fmt.Sprintf("[JOB ERROR %s] Transcode failed: %v", job.JobId, err)
 		log.Println(errMsg)
 		w.redis.Publish(ctx, logChan, errMsg)
-		// Thực tế: Trong dự án sẽ gọi Node.js API hoặc update Redis để báo lỗi (Trạng thái: FAILED)
 		statusMsg := fmt.Sprintf(`{"jobId":"%s","status":"FAILED","videoId":"%s"}`, job.JobId, job.VideoId)
 		w.redis.Publish(ctx, "worker:job:status", statusMsg)
 	} else {
@@ -134,7 +140,6 @@ func (w *MediaWorker) processSingleJob(globalCtx context.Context, job *pb.VideoJ
 		w.redis.Publish(ctx, "worker:job:status", statusMsg)
 	}
 
-	// 4. DỌN DẸP RÁC (RẤT QUAN TRỌNG ĐỂ KHÔNG ĐẦY Ổ CỨNG EC2)
 	log.Printf("[CLEANUP] Deleting temporary files for Job %s...", job.JobId)
 	os.Remove(localInput)
 	os.RemoveAll(localOutputDir)
@@ -176,7 +181,6 @@ func (w *MediaWorker) StartListening(ctx context.Context) {
 			}
 
 			w.wg.Add(1)
-			// Nhận được Job -> Đẩy nó sang 1 Goroutine (Thread) khác để xử lý bất đồng bộ
 			go w.processSingleJob(ctx, &job)
 		}
 	}

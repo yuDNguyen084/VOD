@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
-dotenv.config();
+import path from 'path';
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import app from './app';
